@@ -1,6 +1,26 @@
 use sha2::{Digest, Sha256};
 use std::time::SystemTime;
 
+pub enum BlockSearch {
+    SearchByIndex(usize),
+    SearchByPreviousHash(Vec<u8>),
+    SearchByBlockHash(Vec<u8>),
+    SearchByNonce(i32),
+    SearchByTimestamp(u128),
+    SearchByTransaction(Vec<u8>),
+}
+
+pub enum BlockSearchResult<'a> {
+    Success(&'a Block),
+    FailOfEmptyBlocks,
+    FailOfIndex(usize),
+    FailOfPreviousHash(Vec<u8>),
+    FailOfBlockHash(Vec<u8>),
+    FailOfNonce(i32),
+    FailOfTimestamp(u128),
+    FailOfTransaction(Vec<u8>),
+}
+
 #[derive(Debug)]
 pub struct Block {
     nonce: i32,
@@ -79,5 +99,63 @@ impl BlockChain {
             return &self.chain[self.chain.len() - 1];
         }
         &self.chain[0]
+    }
+
+    pub fn search_block(&self, search: BlockSearch) -> BlockSearchResult {
+        for (idx, block) in self.chain.iter().enumerate() {
+            match search {
+                BlockSearch::SearchByIndex(index) => {
+                    if idx == index {
+                        return BlockSearchResult::Success(block);
+                    } else {
+                        return BlockSearchResult::FailOfIndex(index);
+                    }
+                }
+
+                BlockSearch::SearchByPreviousHash(ref hash) => {
+                    if block.previous_hash == *hash {
+                        return BlockSearchResult::Success(block);
+                    } else {
+                        return BlockSearchResult::FailOfPreviousHash(hash.to_vec());
+                    }
+                }
+
+                BlockSearch::SearchByBlockHash(ref hash) => {
+                    if block.hash() == *hash {
+                        return BlockSearchResult::Success(block);
+                    } else {
+                        return BlockSearchResult::FailOfBlockHash(hash.to_vec());
+                    }
+                }
+
+                BlockSearch::SearchByNonce(nonce) => {
+                    if block.nonce == nonce {
+                        return BlockSearchResult::Success(block);
+                    } else {
+                        return BlockSearchResult::FailOfNonce(nonce);
+                    }
+                }
+
+                BlockSearch::SearchByTimestamp(timestamp) => {
+                    if block.time_stamp == timestamp {
+                        return BlockSearchResult::Success(block);
+                    } else {
+                        return BlockSearchResult::FailOfTimestamp(timestamp);
+                    }
+                }
+
+                BlockSearch::SearchByTransaction(ref transaction) => {
+                    for tx in block.transactions.iter() {
+                        if transaction == tx {
+                            return BlockSearchResult::Success(block);
+                        } else {
+                            return BlockSearchResult::FailOfTransaction(transaction.to_vec());
+                        }
+                    }
+                }
+            }
+        }
+
+        return BlockSearchResult::FailOfEmptyBlocks;
     }
 }
