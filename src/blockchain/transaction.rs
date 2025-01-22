@@ -1,4 +1,5 @@
 use crate::blockchain::block_and_blockchain::Serialization;
+use std::fmt::Display;
 
 #[derive(Debug)]
 pub struct Transaction {
@@ -68,5 +69,19 @@ impl Serialization<Transaction> for Transaction {
             recipient_address,
             value,
         }
+    }
+}
+
+impl Display for Transaction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:?}\nSender Address: {:?}\nRecipient Address: {:?}\nValue: {:?}\n {}",
+            "-".repeat(40),
+            self.sender_address,
+            self.recipient_address,
+            self.value,
+            "-".repeat(40)
+        )
     }
 }
