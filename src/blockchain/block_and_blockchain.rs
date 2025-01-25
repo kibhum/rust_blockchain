@@ -1,6 +1,8 @@
 use crate::blockchain::transaction::*;
 use sha2::{Digest, Sha256};
-use std::time::SystemTime;
+use std::cmp::PartialEq;
+use std::ops::{AddAssign, Index};
+use std::time::{Instant, SystemTime};
 
 pub trait Serialization<T> {
     fn serialization(&self) -> Vec<u8>;
@@ -35,6 +37,20 @@ pub struct Block {
     transactions: Vec<Vec<u8>>,
 }
 
+impl AddAssign<i32> for Block {
+    fn add_assign(&mut self, rhs: i32) {
+        self.nonce += rhs;
+    }
+}
+
+impl PartialEq for Block {
+    fn eq(&self, other: &Self) -> bool {
+        let self_hash = self.hash();
+        let other_hash = other.hash();
+        self_hash == other_hash
+    }
+}
+
 impl Block {
     pub fn new(nonce: i32, previous_hash: Vec<u8>) -> Self {
         let time_now = SystemTime::now()
@@ -54,8 +70,12 @@ impl Block {
         // Formating value as integer
         println!("Nonce: {}", self.nonce);
         // Using Debug formatter for complex values
-        println!("Transactions: {:?}", self.transactions);
         println!("previous_hash: {:?}", self.previous_hash);
+        println!("Transactions: {:?}", self.transactions);
+        for (idx, tx) in self.transactions.iter().enumerate() {
+            let transaction = Transaction::deserialization(tx.to_vec());
+            println!("The transaction: {} is number: {}", transaction, idx)
+        }
     }
 
     pub fn hash(&self) -> Vec<u8> {
@@ -76,14 +96,22 @@ impl Block {
 pub struct BlockChain {
     transaction_pool: Vec<Vec<u8>>,
     chain: Vec<Block>,
+    blockchain_address: String,
 }
 impl BlockChain {
-    pub fn new() -> Self {
+    const DIFFICULTY: usize = 4;
+    const MINING_SENDER: &str = "THE BLOCKCHAIN";
+    const MINING_REWARD: u64 = 1;
+
+    pub fn new(address: String) -> Self {
         let mut bc = BlockChain {
             transaction_pool: Vec::<Vec<u8>>::new(),
             chain: Vec::<Block>::new(),
+            blockchain_address: address,
         };
-        bc.create_block(0, vec![0 as u8; 32]);
+        let b = Block::new(0, vec![0 as u8; 32]);
+        bc.chain.push(b);
+        bc.mining();
         bc
     }
 
@@ -93,6 +121,13 @@ impl BlockChain {
             b.transactions.push(tx.clone());
         }
         self.transaction_pool.clear();
+        let now = Instant::now();
+        let proof_hash = BlockChain::do_proof_of_work(&mut b);
+        let elapsted_time = now.elapsed();
+        println!(
+            "Compute time: {:?}\nProof Hash for the current block is:{:?}",
+            elapsted_time, proof_hash
+        );
         self.chain.push(b);
     }
 
@@ -176,5 +211,63 @@ impl BlockChain {
             }
         }
         self.transaction_pool.push(tx.serialization());
+    }
+
+    fn do_proof_of_work(block: &mut Block) -> String {
+        loop {
+            let hash = block.hash();
+            let hash_str = hex::encode(&hash);
+            if hash_str[0..BlockChain::DIFFICULTY] == "0".repeat(BlockChain::DIFFICULTY) {
+                return hash_str;
+            }
+            *block += 1;
+        }
+    }
+
+    pub fn mining(&mut self) -> bool {
+        let tx = Transaction::new(
+            BlockChain::MINING_SENDER.clone().into(),
+            self.blockchain_address.clone().into(),
+            BlockChain::MINING_REWARD,
+        );
+        self.add_transaction(&tx);
+        self.create_block(0, self.last_block().hash());
+        true
+    }
+
+    pub fn calculate_total_amount(&self, address: String) -> i64 {
+        let mut total_amount: i64 = 0;
+        for i in 0..self.chain.len() {
+            let block = &self[i];
+            for t in block.transactions.iter() {
+                let tx = Transaction::deserialization(t.to_vec());
+                let value = tx.value;
+
+                if <String as Into<Vec<u8>>>::into(address.clone()) == tx.recipient_address {
+                    total_amount += value as i64;
+                }
+
+                if <String as Into<Vec<u8>>>::into(address.clone()) == tx.sender_address {
+                    total_amount -= value as i64;
+                }
+            }
+        }
+
+        total_amount
+    }
+}
+
+impl Index<usize> for BlockChain {
+    type Output = Block;
+    fn index(&self, index: usize) -> &Self::Output {
+        let res = self.chain.get(index);
+        match res {
+            Some(block) => {
+                return block;
+            }
+            None => {
+                panic!("Index out of range");
+            }
+        }
     }
 }

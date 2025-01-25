@@ -40,40 +40,49 @@ fn get_block_search_result(result: BlockSearchResult) {
     }
 }
 fn main() {
-    let mut block_chain = BlockChain::new();
+    let my_blockchain_address = "my blockchain address";
+    let mut blockchain = BlockChain::new(my_blockchain_address.into());
 
-    let previous_hash = block_chain.last_block().hash();
-    let hash_to_find = previous_hash.clone();
+    let tx = Transaction::new("A".into(), "B".into(), 1);
+    blockchain.add_transaction(&tx);
 
-    block_chain.create_block(1, previous_hash);
+    blockchain.mining();
+    blockchain.print();
 
-    let previous_hash = block_chain.last_block().hash();
-    block_chain.create_block(1, previous_hash);
+    let tx = Transaction::new("C".into(), "D".into(), 2);
+    blockchain.add_transaction(&tx);
+    let tx = Transaction::new("X".into(), "Y".into(), 3);
+    blockchain.add_transaction(&tx);
 
-    let tx = Transaction::new(
-        "sender".as_bytes().to_vec(),
-        "recipient".as_bytes().to_vec(),
-        100,
+    blockchain.mining();
+    blockchain.print();
+
+    println!(
+        "Miner value: {}",
+        blockchain.calculate_total_amount(my_blockchain_address.to_string())
     );
-    block_chain.add_transaction(&tx);
-    // println!("{}", tx);
-
-    // println!("Transaction before serialization: {:?}", tx);
-    // let tx_bin = tx.serialization();
-    // println!("Transaction after serialization: {:?}", tx_bin);
-    // let tx_des = Transaction::deserialization(tx_bin);
-    // println!("Transaction after deserialization: {:?}", tx_des);
-
-    let previous_hash = block_chain.last_block().hash();
-    block_chain.create_block(1, previous_hash);
-    block_chain.print();
-
-    let result = block_chain.search_block(BlockSearch::SearchByIndex(1));
-    get_block_search_result(result);
-
-    let result = block_chain.search_block(BlockSearch::SearchByIndex(5));
-    get_block_search_result(result);
-
-    let result = block_chain.search_block(BlockSearch::SearchByBlockHash(hash_to_find));
-    get_block_search_result(result);
+    println!(
+        "A value: {}",
+        blockchain.calculate_total_amount("A".to_string())
+    );
+    println!(
+        "B value: {}",
+        blockchain.calculate_total_amount("B".to_string())
+    );
+    println!(
+        "C value: {}",
+        blockchain.calculate_total_amount("C".to_string())
+    );
+    println!(
+        "D value: {}",
+        blockchain.calculate_total_amount("D".to_string())
+    );
+    println!(
+        "X value: {}",
+        blockchain.calculate_total_amount("X".to_string())
+    );
+    println!(
+        "Y value: {}",
+        blockchain.calculate_total_amount("Y".to_string())
+    );
 }
