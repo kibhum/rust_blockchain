@@ -78,8 +78,8 @@ impl Display for Transaction {
             f,
             "{:?}\nSender Address: {:?}\nRecipient Address: {:?}\nValue: {:?}\n {}",
             "-".repeat(40),
-            self.sender_address,
-            self.recipient_address,
+            String::from_utf8(self.sender_address.clone()).unwrap(),
+            String::from_utf8(self.recipient_address.clone()).unwrap(),
             self.value,
             "-".repeat(40)
         )
