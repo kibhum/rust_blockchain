@@ -6,3 +6,5 @@ edition = "2021"
 [dependencies]
 hex = "0.4.3"
 sha2 = "0.10.8"
+p256={version="0.13", features=["ecdsa", "arithmetic"]}
+rand_core="0.6"
