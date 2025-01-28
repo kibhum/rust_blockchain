@@ -5,12 +5,24 @@ use p256::ecdsa::{
 };
 use rand_core::OsRng;
 use ripemd160::{Digest as RipemdDigest, Ripemd160};
+use serde::Serialize;
 use sha2::{Digest, Sha256};
+
+use crate::blockchain::transaction;
 
 pub struct Wallet {
     pub signing_key: SigningKey,
     pub verifying_key: VerifyingKey,
     address: String,
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct Transaction {
+    pub sender: String,
+    pub recipient: String,
+    pub amount: u64,
+    pub public_key: String,
+    pub signature: String,
 }
 
 impl Wallet {
@@ -72,5 +84,50 @@ impl Wallet {
 
     pub fn get_address(&self) -> String {
         self.address.clone()
+    }
+
+    pub fn sign_transaction(&self, receiver: &String, amount: u64) -> Transaction {
+        let mut transaction = Transaction {
+            sender: self.address.clone(),
+            recipient: receiver.clone(),
+            amount,
+            signature: String::new(),
+            public_key: self.public_key_str(),
+        };
+
+        let serialized_str = serde_json::to_string(&transaction).unwrap();
+        let serialized = serialized_str.as_bytes();
+        let sig: Signature = self.signing_key.sign(serialized);
+        transaction.signature = hex::encode(sig.to_bytes());
+        transaction
+    }
+
+    pub fn verify_transaction(transaction: &Transaction) -> bool {
+        let signature_str = transaction.signature.clone();
+        let signature_bin = hex::decode(signature_str).unwrap();
+        let mut transaction_clone = transaction.clone();
+        transaction_clone.signature = String::new();
+
+        let serialized_str = serde_json::to_string(&transaction_clone).unwrap();
+        let serialized = serialized_str.as_bytes();
+
+        // Convert the signature from string to the instance of the struct
+        // We need to make sure that the binary data is 64 bytes long
+        let sig_array: [u8; 64] = signature_bin.try_into().unwrap();
+        let signature = match Signature::from_bytes(&sig_array.into()) {
+            Ok(sig) => sig,
+            Err(e) => {
+                println!("Error getting signature: {:?}", e);
+                return false;
+            }
+        };
+        // Convert the binary data into the VerifyingKey object
+        let public_key_str = transaction_clone.public_key.clone();
+        let mut public_key_bin = hex::decode(public_key_str).unwrap();
+        // Making sure the binary data is in sec1 format: [0x04 || x coordinate || y coordinate]
+
+        public_key_bin.insert(0, 0x04);
+        let public_key = VerifyingKey::from_sec1_bytes(&public_key_bin).unwrap();
+        public_key.verify(serialized, &signature).is_ok()
     }
 }
