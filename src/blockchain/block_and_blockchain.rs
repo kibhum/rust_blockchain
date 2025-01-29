@@ -1,5 +1,6 @@
 use crate::blockchain::transaction::*;
 use crate::wallet::wallet::{Transaction as WalletTransaction, Wallet};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::cmp::PartialEq;
 use std::ops::{AddAssign, Index};
@@ -30,7 +31,7 @@ pub enum BlockSearchResult<'a> {
     FailOfTransaction(Vec<u8>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Block {
     nonce: i32,
     previous_hash: Vec<u8>,
@@ -93,7 +94,7 @@ impl Block {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BlockChain {
     transaction_pool: Vec<Vec<u8>>,
     chain: Vec<Block>,
