@@ -9,7 +9,6 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 
 use crate::blockchain::transaction;
-
 pub struct Wallet {
     pub signing_key: SigningKey,
     pub verifying_key: VerifyingKey,

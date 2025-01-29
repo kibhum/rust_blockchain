@@ -1,4 +1,5 @@
 use crate::blockchain::transaction::*;
+use crate::wallet::wallet::{Transaction as WalletTransaction, Wallet};
 use sha2::{Digest, Sha256};
 use std::cmp::PartialEq;
 use std::ops::{AddAssign, Index};
@@ -204,13 +205,38 @@ impl BlockChain {
         return BlockSearchResult::FailOfEmptyBlocks;
     }
 
-    pub fn add_transaction(&mut self, tx: &impl Serialization<Transaction>) {
+    pub fn add_transaction(&mut self, tx: &WalletTransaction) -> bool {
+        // Making sure we are not sending to ourself
+        if tx.sender == self.blockchain_address {
+            println!("The miner cannot send money to themselves");
+            return false;
+        }
+        // We should also avoid verify the transaction that is a reward from the blockchain
+        if tx.sender != BlockChain::MINING_SENDER && !Wallet::verify_transaction(tx) {
+            println!("Invalid transation");
+            return false;
+        }
+        // Making sure the sender has enough balance to send a particular amount of money
+        // The sender should also not be the blockchain
+        if tx.sender != BlockChain::MINING_SENDER
+            && self.calculate_total_amount(tx.sender.clone()) < tx.amount as i64
+        {
+            println!("The sender doesn't have enough balance to make that transation");
+            return false;
+        }
+
+        let transaction = Transaction::new(
+            tx.sender.as_bytes().to_vec(),
+            tx.recipient.as_bytes().to_vec(),
+            tx.amount,
+        );
         for tx_in_pool in self.transaction_pool.iter() {
-            if *tx_in_pool == tx.serialization() {
-                return;
+            if *tx_in_pool == transaction.serialization() {
+                break;
             }
         }
-        self.transaction_pool.push(tx.serialization());
+        self.transaction_pool.push(transaction.serialization());
+        true
     }
 
     fn do_proof_of_work(block: &mut Block) -> String {
@@ -225,11 +251,13 @@ impl BlockChain {
     }
 
     pub fn mining(&mut self) -> bool {
-        let tx = Transaction::new(
-            BlockChain::MINING_SENDER.clone().into(),
-            self.blockchain_address.clone().into(),
-            BlockChain::MINING_REWARD,
-        );
+        let tx = WalletTransaction {
+            sender: BlockChain::MINING_SENDER.into(),
+            recipient: self.blockchain_address.clone().into(),
+            amount: 20,
+            public_key: String::new(),
+            signature: String::new(),
+        };
         self.add_transaction(&tx);
         self.create_block(0, self.last_block().hash());
         true
